@@ -1,5 +1,6 @@
 import scala.sys.process._
 import scala.language.postfixOps
+import org.scalajs.jsenv.nodejs.NodeJSEnv
 
 import sbtwelcome._
 
@@ -60,11 +61,53 @@ lazy val counter =
     .settings(commonSettings: _*)
     .settings(name := "counter")
 
+lazy val `electron-server` =
+  project
+    .enablePlugins(ScalaJSPlugin, ScalablyTypedConverterExternalNpmPlugin)
+    .settings(commonSettings: _*)
+    .settings(name := "electron")
+    .settings(
+      stStdlib                        := List("es5"), // doesn't include DOM
+      scalaJSUseMainModuleInitializer := true,
+      scalaJSLinkerConfig ~= (_
+        /* disabled because it somehow triggers many warnings */
+        .withSourceMap(false)
+        .withModuleKind(ModuleKind.CommonJSModule)),
+      /** ScalablyTypedConverterExternalNpmPlugin requires that we define how to
+        * install node dependencies and where they are
+        *
+        * Since we run yarn ourselves the dependencies live in
+        * electron/package.json
+        *
+        * Invoking yarn is somewhat awkward, because for instance sbt started
+        * through intellij won't have a proper PATH set. try to start an
+        * interactive shell to read the necessary dot files
+        */
+      externalNpm := {
+        if (scala.util.Properties.isWin)
+          Process("yarn", baseDirectory.value).run()
+        else Process("bash -ci 'yarn'", baseDirectory.value).run()
+        baseDirectory.value
+      },
+      jsEnv := new NodeJSEnv(
+        NodeJSEnv
+          .Config()
+          .withExecutable("electron-server/node_modules/.bin/electron")
+          .withArgs(List((Compile / classDirectory).value.toString))
+      )
+    )
+
 lazy val electron =
   (project in file("electron"))
     .enablePlugins(ScalaJSPlugin)
     .settings(commonSettings: _*)
-    .settings(name := "electron")
+    .settings(
+      name := "electron",
+      scalaJSLinkerConfig ~= (_
+        /* disabled because it somehow triggers many warnings */
+        .withSourceMap(false)
+        .withModuleKind(ModuleKind.ESModule))
+    )
 
 lazy val field =
   (project in file("field"))

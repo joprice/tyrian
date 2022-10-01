@@ -19,6 +19,7 @@ object Main extends TyrianApp[Msg, Model]:
 
   def view(model: Model): Html[Msg] =
     div(
+      div("Counter 3"),
       button(onClick(Msg.Decrement))("-"),
       div(model.toString),
       button(onClick(Msg.Increment))("+")
